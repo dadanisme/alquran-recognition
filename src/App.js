@@ -16,6 +16,7 @@ function App() {
   const [isRecording, setIsRecording] = useState(false);
   const [response, setResponse] = useState(null);
   const [isRecorded, setIsRecorded] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   const [isUploaded, setIsUploaded] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isPredicted, setIsPredicted] = useState(false);
@@ -24,7 +25,7 @@ function App() {
   const [bg, setBg] = useState("primary");
   const [prediction, setPrediction] = useState([]);
 
-  const server = "http://127.0.0.1:5000/";
+  const server = "https://alquranrecognition.pythonanywhere.com/";
 
   // refs section
   const uploadRef = useRef(null);
@@ -90,6 +91,7 @@ function App() {
     setStatus("Mengupload...");
     setBg("warning");
     setLoading(true);
+    setIsUploading(true);
     if (blob) {
       const xhr = new XMLHttpRequest();
       const filename = blob.url.split("/")[blob.url.split("/").length - 1];
@@ -103,12 +105,12 @@ function App() {
           console.log(data);
           setFilename(data.filename);
           setIsUploaded(true);
+          setIsUploading(false);
           setStatus("Berhasil mengupload");
           setBg("success");
         } else {
           setStatus("Error");
           setBg("danger");
-          setLoading(false);
         }
       };
     }
@@ -135,7 +137,6 @@ function App() {
         } else {
           setStatus("Error");
           setBg("danger");
-          setLoading(false);
         }
       };
     }
@@ -164,7 +165,6 @@ function App() {
           } else {
             setStatus("Error");
             setBg("danger");
-            setLoading(false);
           }
         };
       });
@@ -193,13 +193,13 @@ function App() {
           onClick={isRecording ? stopRecording : startRecording}
           className="recorder"
           onMouseOver={() => {
-            if (!isUploaded && !isRecording) {
+            if (!isUploaded && !isRecording && !isUploading) {
               setStatus("Klik untuk merekam");
               setBg("dark");
             }
           }}
           onMouseOut={() => {
-            if (!isUploaded && !isRecording) {
+            if (!isUploaded && !isRecording && !isUploading) {
               setStatus("Idle");
               setBg("primary");
             }
