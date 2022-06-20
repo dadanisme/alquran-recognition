@@ -16,12 +16,11 @@ function App() {
   const [isRecording, setIsRecording] = useState(false);
   const [response, setResponse] = useState(null);
   const [isRecorded, setIsRecorded] = useState(false);
-  const [isUploading, setIsUploading] = useState(false);
   const [isUploaded, setIsUploaded] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isPredicted, setIsPredicted] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [status, setStatus] = useState("Idle");
+  const [status, setStatus] = useState("Tekan dan tahan untuk mulai merekam");
   const [bg, setBg] = useState("primary");
   const [prediction, setPrediction] = useState([]);
 
@@ -68,7 +67,7 @@ function App() {
     setIsSubmitted(false);
     setIsPredicted(false);
     setLoading(false);
-    setStatus("Merekam, klik kembali untuk mengakhiri");
+    setStatus("Merekam, lepas untuk mengakhiri");
     setBg("danger");
     micRef.current.style.color = "var(--bs-danger)";
     AudioReactRecorderRef.current.style.display = "unset";
@@ -91,7 +90,6 @@ function App() {
     setStatus("Mengupload...");
     setBg("warning");
     setLoading(true);
-    setIsUploading(true);
     if (blob) {
       const xhr = new XMLHttpRequest();
       const filename = blob.url.split("/")[blob.url.split("/").length - 1];
@@ -105,7 +103,6 @@ function App() {
           console.log(data);
           setFilename(data.filename);
           setIsUploaded(true);
-          setIsUploading(false);
           setStatus("Berhasil mengupload");
           setBg("success");
         } else {
@@ -190,20 +187,9 @@ function App() {
         }
       >
         <div
-          onClick={isRecording ? stopRecording : startRecording}
+          onMouseDown={isRecording ? stopRecording : startRecording}
+          onMouseUp={isRecording ? stopRecording : null}
           className="recorder"
-          onMouseOver={() => {
-            if (!isUploaded && !isRecording && !isUploading) {
-              setStatus("Klik untuk merekam");
-              setBg("dark");
-            }
-          }}
-          onMouseOut={() => {
-            if (!isUploaded && !isRecording && !isUploading) {
-              setStatus("Idle");
-              setBg("primary");
-            }
-          }}
         >
           <div ref={AudioReactRecorderRef}>
             <AudioReactRecorder
