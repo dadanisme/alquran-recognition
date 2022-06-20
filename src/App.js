@@ -4,6 +4,9 @@ import "bootstrap/dist/css/bootstrap.min.css";
 import { Button } from "react-bootstrap";
 import "./App.css";
 import Response from "./Component/Response";
+import { Spinner } from "react-bootstrap";
+import Status from "./Component/Status";
+import "boxicons/css/boxicons.min.css";
 
 function App() {
   // states section
@@ -15,9 +18,10 @@ function App() {
   const [isRecorded, setIsRecorded] = useState(false);
   const [isUploaded, setIsUploaded] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [isPredicted, setIsPredicted] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [status, setStatus] = useState("");
-  const [sampleRateHertz, setSampleRateHertz] = useState(null);
+  const [status, setStatus] = useState("Idle");
+  const [bg, setBg] = useState("primary");
   const [prediction, setPrediction] = useState([]);
 
   const server = "http://127.0.0.1:5000/";
@@ -26,16 +30,11 @@ function App() {
   const uploadRef = useRef(null);
   const getResponseRef = useRef(null);
   const predictRef = useRef(null);
+  const placeholderRef = useRef(null);
+  const micRef = useRef(null);
+  const AudioReactRecorderRef = useRef(null);
 
   // effects section
-  useEffect(() => {
-    if (window.innerWidth < 768) {
-      setSampleRateHertz(48000);
-    } else {
-      setSampleRateHertz(44100);
-    }
-  }, []);
-
   useEffect(() => {
     if (isRecorded) {
       uploadRef.current.click();
@@ -66,7 +65,12 @@ function App() {
     setIsRecorded(false);
     setIsUploaded(false);
     setIsSubmitted(false);
-    setStatus("Recording...");
+    setIsPredicted(false);
+    setLoading(false);
+    setStatus("Merekam, klik kembali untuk mengakhiri");
+    setBg("danger");
+    micRef.current.style.color = "var(--bs-danger)";
+    AudioReactRecorderRef.current.style.display = "unset";
   };
 
   const stopRecording = () => {
@@ -78,10 +82,14 @@ function App() {
     console.log(audioData);
     setBlob(audioData);
     setIsRecorded(true);
+    micRef.current.style.color = "var(--bs-light)";
+    AudioReactRecorderRef.current.style.display = "none";
   };
 
   const handleUploadBlob = () => {
-    setStatus("Uploading...");
+    setStatus("Mengupload...");
+    setBg("warning");
+    setLoading(true);
     if (blob) {
       const xhr = new XMLHttpRequest();
       const filename = blob.url.split("/")[blob.url.split("/").length - 1];
@@ -95,20 +103,25 @@ function App() {
           console.log(data);
           setFilename(data.filename);
           setIsUploaded(true);
-          setStatus("Uploaded");
+          setStatus("Berhasil mengupload");
+          setBg("success");
+        } else {
+          setStatus("Error");
+          setBg("danger");
+          setLoading(false);
         }
       };
     }
   };
 
   const handleSubmit = async () => {
-    setStatus("Submitting...");
+    setStatus("Membuat annotasi");
+    setBg("warning");
     console.log(filename);
-    setLoading(true);
     if (filename) {
       console.log("submitting");
       const xhr = new XMLHttpRequest();
-      const url = `${server}/get_response?filename=${filename}&sample_rate_hertz=${sampleRateHertz}`;
+      const url = `${server}/get_response?filename=${filename}`;
       xhr.open("GET", url, true);
       xhr.send();
       xhr.onreadystatechange = async function () {
@@ -116,17 +129,21 @@ function App() {
           const data = await JSON.parse(xhr.responseText);
           console.log(data);
           setResponse(data);
-          setLoading(false);
-          setStatus("Success");
+          setStatus("Berhasil membuat annotasi");
+          setBg("success");
           setIsSubmitted(true);
+        } else {
+          setStatus("Error");
+          setBg("danger");
+          setLoading(false);
         }
       };
     }
   };
 
   const handlePredict = async () => {
-    setStatus("Predicting...");
-    setLoading(true);
+    setStatus("Memprediksi ayat");
+    setBg("warning");
     if (response) {
       response.result.forEach((annotation) => {
         const text = annotation.translated;
@@ -138,10 +155,16 @@ function App() {
         xhr.onreadystatechange = async function () {
           if (xhr.readyState === 4 && xhr.status === 200) {
             const data = await JSON.parse(xhr.responseText);
-            console.log(data);
             setLoading(false);
-            setStatus("Success");
-            setPrediction((prev) => [...prev, data]);
+            setStatus("Berhasil memprediksi");
+            setBg("success");
+            console.log(data);
+            setIsPredicted(true);
+            setPrediction((prev) => [data, ...prev]);
+          } else {
+            setStatus("Error");
+            setBg("danger");
+            setLoading(false);
           }
         };
       });
@@ -156,20 +179,62 @@ function App() {
         justifyContent: "center",
         minHeight: "100vh",
       }}
+      className="main"
     >
       {/* Recorder section */}
       <div
-        onClick={isRecording ? stopRecording : startRecording}
-        className="recorder"
+        className={
+          response !== null && isPredicted
+            ? "recorder-container uploaded"
+            : "recorder-container"
+        }
       >
-        <AudioReactRecorder
-          backgroundColor="white"
-          foregroundColor="red"
-          state={recordState}
-          canvasWidth="200px"
-          canvasHeight="200px"
-          onStop={handleStopRecording}
-        />
+        <div
+          onClick={isRecording ? stopRecording : startRecording}
+          className="recorder"
+          onMouseOver={() => {
+            if (!isUploaded && !isRecording) {
+              setStatus("Klik untuk merekam");
+              setBg("dark");
+            }
+          }}
+          onMouseOut={() => {
+            if (!isUploaded && !isRecording) {
+              setStatus("Idle");
+              setBg("primary");
+            }
+          }}
+        >
+          <div ref={AudioReactRecorderRef}>
+            <AudioReactRecorder
+              backgroundColor="#39C0ED"
+              foregroundColor="#FBFBFB"
+              state={recordState}
+              canvasWidth="200px"
+              canvasHeight="200px"
+              onStop={handleStopRecording}
+            />
+          </div>
+          <div className="recorder-placeholder" ref={placeholderRef}>
+            <i
+              className="bx bxs-microphone"
+              ref={micRef}
+              style={{ fontSize: "120px" }}
+            ></i>
+          </div>
+        </div>
+        <Status status={status} bg={bg} />
+
+        {loading && (
+          <Spinner
+            className="mt-2"
+            animation="border"
+            role="status"
+            variant="light"
+          >
+            <span className="visually-hidden">Loading...</span>
+          </Spinner>
+        )}
       </div>
 
       {/* Buttons section */}
@@ -185,11 +250,14 @@ function App() {
         </Button>
       </div>
 
-      {/* Status section */}
-      <div>Status: {status ? status : "Idle"}</div>
-
       {/* Response section */}
-      <Response response={response} prediction={prediction} loading={loading} />
+      {response !== null && isPredicted && (
+        <Response
+          response={response}
+          prediction={prediction}
+          loading={loading}
+        />
+      )}
     </div>
   );
 }

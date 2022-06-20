@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { Card } from "react-bootstrap";
 
 export default function Prediction(props) {
   const [idx, setIdx] = useState(null);
@@ -12,21 +13,37 @@ export default function Prediction(props) {
 
   if (idx !== null && prediction !== null) {
     return (
-      <div key={idx}>
-        {prediction.result.map((pred, idx) => {
-          return (
-            <ul key={idx} className="mb-3">
-              <li>Identifier: {pred.identifier}</li>
-              <li>
-                Arabic:{" "}
-                <span dir="rtl" lang="ar">
-                  {pred.ar}
-                </span>
-              </li>
-              <li>Translated: {pred.idn}</li>
-            </ul>
-          );
-        })}
+      <div>
+        <h3
+          className="mt-2"
+          style={{
+            textAlign: "center",
+            color: "var(--bs-light)",
+          }}
+        >
+          Ayat Al-Qur'an yang cocok
+        </h3>
+        <div key={idx} className="prediction-container">
+          {prediction.result.map((pred, idx) => {
+            return (
+              <div key={idx}>
+                <Card className="prediction-item">
+                  <Card.Header className="prediction-header">
+                    {pred.identifier}
+                  </Card.Header>
+                  <Card.Body className="prediction-body">
+                    <Card.Text>
+                      <span dir="rtl" lang="ar">
+                        {pred.ar}
+                      </span>
+                    </Card.Text>
+                    <Card.Text>{pred.idn}</Card.Text>
+                  </Card.Body>
+                </Card>
+              </div>
+            );
+          })}
+        </div>
       </div>
     );
   } else {
