@@ -25,7 +25,7 @@ function App() {
   const [bg, setBg] = useState("primary");
   const [prediction, setPrediction] = useState([]);
 
-  const server = "https://alquranrecognition.pythonanywhere.com/";
+  const server = process.env.REACT_APP_SERVER;
 
   // refs section
   const uploadRef = useRef(null);
