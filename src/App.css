@@ -19,6 +19,7 @@
   align-items: center;
   flex-direction: column;
   overflow: hidden;
+  box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.5);
 }
 
 .recorder-placeholder {
@@ -72,7 +73,7 @@
   height: max-content;
   width: calc(100% - 20px);
   border: none;
-  box-shadow: 0px 0px 2px 2px rgba(0, 0, 0, 0.2);
+  box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.5);
 }
 
 .response-header {
@@ -91,7 +92,7 @@
   height: 300px;
   margin: 5px;
   border: none;
-  box-shadow: 0px 0px 2px 2px rgba(0, 0, 0, 0.2);
+  box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.5);
 }
 
 .prediction-header {
