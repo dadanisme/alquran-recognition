@@ -1,11 +1,12 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import AudioReactRecorder, { RecordState } from "audio-react-recorder";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "./App.css";
-import { Spinner } from "react-bootstrap";
 import Status from "./Component/Status";
 import axios from "axios";
 import "boxicons/css/boxicons.min.css";
+import { useDispatch } from "react-redux";
+import { setPrediction } from "./store/slices/prediction";
 
 function App() {
   // states section
@@ -14,28 +15,56 @@ function App() {
   const [isRecording, setIsRecording] = useState(false);
   const [response, setResponse] = useState(null);
   const [isSubmitted, setIsSubmitted] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [isAllowed, setIsAllowed] = useState(false);
   const [status, setStatus] = useState("Tekan dan tahan untuk mulai merekam");
   const [bg, setBg] = useState("primary");
-  const [prediction, setPrediction] = useState([]);
+
+  const dispatch = useDispatch();
 
   const server = process.env.REACT_APP_SERVER;
+
+  // lifecycle section
+  useEffect(() => {
+    navigator.mediaDevices
+      .getUserMedia({ audio: true })
+      .then(function (stream) {
+        console.log("You let me use your mic!");
+        setIsAllowed(true);
+      })
+      .catch(function (err) {
+        console.log("No mic for you!");
+        setIsAllowed(false);
+        setStatus("Aplikasi ini membutuhkan akses ke mikrofon");
+        setBg("danger");
+      });
+  }, []);
 
   // refs section
   const placeholderRef = useRef(null);
   const micRef = useRef(null);
   const AudioReactRecorderRef = useRef(null);
 
+  // functions section
+  const isMicrophoneAllowed = () => {
+    navigator.permissions
+      .query({
+        name: "microphone",
+      })
+      .then(function (permissionStatus) {
+        return permissionStatus.state !== "denied";
+      });
+  };
+
   // handlers section
   const startRecording = () => {
     setRecordState(RecordState.START);
     setIsRecording(true);
+
     // reset all
+    dispatch(setPrediction(null));
     setBlob(null);
     setResponse(null);
-    setPrediction([]);
     setIsSubmitted(false);
-    setLoading(false);
     setStatus("Merekam, lepas untuk mengakhiri");
     setBg("danger");
     micRef.current.style.color = "var(--bs-danger)";
@@ -91,6 +120,7 @@ function App() {
       })
       .then((res) => {
         console.log(res.data.data);
+        dispatch(setPrediction(res.data.data));
         setStatus("Selesai");
         setBg("success");
       })
@@ -144,20 +174,7 @@ function App() {
           </div>
         </div>
         <Status status={status} bg={bg} />
-
-        {loading && (
-          <Spinner
-            className="mt-2"
-            animation="border"
-            role="status"
-            variant="light"
-          >
-            <span className="visually-hidden">Loading...</span>
-          </Spinner>
-        )}
       </div>
-
-      <div>{JSON.stringify(prediction)}</div>
     </div>
   );
 }
