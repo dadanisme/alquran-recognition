@@ -1,11 +1,10 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef } from "react";
 import AudioReactRecorder, { RecordState } from "audio-react-recorder";
 import "bootstrap/dist/css/bootstrap.min.css";
-import { Button } from "react-bootstrap";
 import "./App.css";
-import Response from "./Component/Response";
 import { Spinner } from "react-bootstrap";
 import Status from "./Component/Status";
+import axios from "axios";
 import "boxicons/css/boxicons.min.css";
 
 function App() {
@@ -14,7 +13,6 @@ function App() {
   const [blob, setBlob] = useState(null);
   const [isRecording, setIsRecording] = useState(false);
   const [response, setResponse] = useState(null);
-  const [isRecorded, setIsRecorded] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState("Tekan dan tahan untuk mulai merekam");
@@ -24,17 +22,9 @@ function App() {
   const server = process.env.REACT_APP_SERVER;
 
   // refs section
-  const uploadRef = useRef(null);
   const placeholderRef = useRef(null);
   const micRef = useRef(null);
   const AudioReactRecorderRef = useRef(null);
-
-  // effects section
-  useEffect(() => {
-    if (isRecorded) {
-      uploadRef.current.click();
-    }
-  }, [isRecorded]);
 
   // handlers section
   const startRecording = () => {
@@ -44,7 +34,6 @@ function App() {
     setBlob(null);
     setResponse(null);
     setPrediction([]);
-    setIsRecorded(false);
     setIsSubmitted(false);
     setLoading(false);
     setStatus("Merekam, lepas untuk mengakhiri");
@@ -56,42 +45,60 @@ function App() {
   const stopRecording = () => {
     setRecordState(RecordState.STOP);
     setIsRecording(false);
+    submit();
   };
 
   const handleStopRecording = (audioData) => {
-    console.log(typeof audioData);
-    setBlob(audioData);
-    setIsRecorded(true);
+    setBlob(audioData.blob);
     micRef.current.style.color = "var(--bs-light)";
     AudioReactRecorderRef.current.style.display = "none";
   };
 
-  function blobToBase64(fileBlob) {
-    const reader = new FileReader();
-    reader.readAsDataURL(fileBlob);
-    return new Promise((resolve) => {
-      reader.onloadend = () => {
-        resolve(reader.result);
-      };
-    });
-  }
-
-  const handleSubmit = async () => {
+  const submit = async () => {
     setStatus("Membuat annotasi");
     setBg("warning");
 
-    const file = await blobToBase64(blob.blob);
+    // convert blob to file object
+    const file = new File([blob], "audio.wav", {
+      type: "audio/wav",
+    });
+
     const formData = new FormData();
     formData.append("file", file);
 
-    const res = await fetch(server + "/api/v1/predict", {
-      method: "POST",
-      body: formData,
-    });
-
-    const data = await res.json();
-
-    console.log(data);
+    // send file to server
+    axios
+      .post(server + "/api/v1/predict/", formData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+          enctype: "multipart/form-data",
+        },
+        onDownloadProgress: (progressEvent) => {
+          const percentCompleted = Math.round(
+            (progressEvent.loaded * 100) / progressEvent.total
+          );
+          setStatus("Mendownload annotasi " + percentCompleted + "%");
+        },
+        onUploadProgress: (progressEvent) => {
+          const percentCompleted = Math.round(
+            (progressEvent.loaded * 100) / progressEvent.total
+          );
+          setStatus("Membuat annotasi " + percentCompleted + "%");
+          if (percentCompleted === 100) {
+            setStatus("Mendownload annotasi");
+          }
+        },
+      })
+      .then((res) => {
+        console.log(res.data.data);
+        setStatus("Selesai");
+        setBg("success");
+      })
+      .catch((err) => {
+        console.log(err);
+        setStatus(err.message);
+        setBg("danger");
+      });
   };
 
   return (
@@ -150,21 +157,7 @@ function App() {
         )}
       </div>
 
-      {/* Buttons section */}
-      <div className="buttons">
-        <Button ref={uploadRef} onClick={handleSubmit} hidden>
-          Upload
-        </Button>
-      </div>
-
-      {/* Response section */}
-      {response !== null && isSubmitted && (
-        <Response
-          response={response}
-          prediction={prediction}
-          loading={loading}
-        />
-      )}
+      <div>{JSON.stringify(prediction)}</div>
     </div>
   );
 }
