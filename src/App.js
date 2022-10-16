@@ -12,13 +12,10 @@ function App() {
   // states section
   const [recordState, setRecordState] = useState(null);
   const [blob, setBlob] = useState(null);
-  const [filename, setFilename] = useState(null);
   const [isRecording, setIsRecording] = useState(false);
   const [response, setResponse] = useState(null);
   const [isRecorded, setIsRecorded] = useState(false);
-  const [isUploaded, setIsUploaded] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
-  const [isPredicted, setIsPredicted] = useState(false);
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState("Tekan dan tahan untuk mulai merekam");
   const [bg, setBg] = useState("primary");
@@ -28,8 +25,6 @@ function App() {
 
   // refs section
   const uploadRef = useRef(null);
-  const getResponseRef = useRef(null);
-  const predictRef = useRef(null);
   const placeholderRef = useRef(null);
   const micRef = useRef(null);
   const AudioReactRecorderRef = useRef(null);
@@ -41,18 +36,6 @@ function App() {
     }
   }, [isRecorded]);
 
-  useEffect(() => {
-    if (isUploaded) {
-      getResponseRef.current.click();
-    }
-  }, [isUploaded]);
-
-  useEffect(() => {
-    if (isSubmitted) {
-      predictRef.current.click();
-    }
-  }, [isSubmitted]);
-
   // handlers section
   const startRecording = () => {
     setRecordState(RecordState.START);
@@ -60,12 +43,9 @@ function App() {
     // reset all
     setBlob(null);
     setResponse(null);
-    setFilename(null);
     setPrediction([]);
     setIsRecorded(false);
-    setIsUploaded(false);
     setIsSubmitted(false);
-    setIsPredicted(false);
     setLoading(false);
     setStatus("Merekam, lepas untuk mengakhiri");
     setBg("danger");
@@ -79,94 +59,41 @@ function App() {
   };
 
   const handleStopRecording = (audioData) => {
-    console.log(audioData);
+    console.log(typeof audioData);
     setBlob(audioData);
     setIsRecorded(true);
     micRef.current.style.color = "var(--bs-light)";
     AudioReactRecorderRef.current.style.display = "none";
   };
 
-  const handleUploadBlob = () => {
-    setStatus("Mengupload...");
-    setBg("warning");
-    setLoading(true);
-    if (blob) {
-      const xhr = new XMLHttpRequest();
-      const filename = blob.url.split("/")[blob.url.split("/").length - 1];
-      const url = `${server}/upload_blob?filename=${filename}`;
-      xhr.open("POST", url, true);
-      xhr.setRequestHeader("Content-Type", "audio/wav");
-      xhr.send(blob.blob);
-      xhr.onreadystatechange = async function () {
-        if (xhr.readyState === 4 && xhr.status === 200) {
-          const data = await JSON.parse(xhr.responseText);
-          console.log(data);
-          setFilename(data.filename);
-          setIsUploaded(true);
-          setStatus("Berhasil mengupload");
-          setBg("success");
-        } else {
-          setStatus("Error");
-          setBg("danger");
-        }
+  function blobToBase64(fileBlob) {
+    const reader = new FileReader();
+    reader.readAsDataURL(fileBlob);
+    return new Promise((resolve) => {
+      reader.onloadend = () => {
+        resolve(reader.result);
       };
-    }
-  };
+    });
+  }
 
   const handleSubmit = async () => {
     setStatus("Membuat annotasi");
     setBg("warning");
-    console.log(filename);
-    if (filename) {
-      console.log("submitting");
-      const xhr = new XMLHttpRequest();
-      const url = `${server}/get_response?filename=${filename}`;
-      xhr.open("GET", url, true);
-      xhr.send();
-      xhr.onreadystatechange = async function () {
-        if (xhr.readyState === 4 && xhr.status === 200) {
-          const data = await JSON.parse(xhr.responseText);
-          console.log(data);
-          setResponse(data);
-          setStatus("Berhasil membuat annotasi");
-          setBg("success");
-          setIsSubmitted(true);
-        } else {
-          setStatus("Error");
-          setBg("danger");
-        }
-      };
-    }
+
+    const file = await blobToBase64(blob.blob);
+    const formData = new FormData();
+    formData.append("file", file);
+
+    const res = await fetch(server + "/api/v1/predict", {
+      method: "POST",
+      body: formData,
+    });
+
+    const data = await res.json();
+
+    console.log(data);
   };
 
-  const handlePredict = async () => {
-    setStatus("Memprediksi ayat");
-    setBg("warning");
-    if (response) {
-      response.result.forEach((annotation) => {
-        const text = annotation.translated;
-        console.log("predicting: " + text);
-        const xhr = new XMLHttpRequest();
-        const url = `${server}/predict?text=${text}`;
-        xhr.open("GET", url, true);
-        xhr.send();
-        xhr.onreadystatechange = async function () {
-          if (xhr.readyState === 4 && xhr.status === 200) {
-            const data = await JSON.parse(xhr.responseText);
-            setLoading(false);
-            setStatus("Berhasil memprediksi");
-            setBg("success");
-            console.log(data);
-            setIsPredicted(true);
-            setPrediction((prev) => [data, ...prev]);
-          } else {
-            setStatus("Error");
-            setBg("danger");
-          }
-        };
-      });
-    }
-  };
   return (
     <div
       style={{
@@ -181,7 +108,7 @@ function App() {
       {/* Recorder section */}
       <div
         className={
-          response !== null && isPredicted
+          response !== null && isSubmitted
             ? "recorder-container uploaded"
             : "recorder-container"
         }
@@ -225,19 +152,13 @@ function App() {
 
       {/* Buttons section */}
       <div className="buttons">
-        <Button ref={uploadRef} onClick={handleUploadBlob} hidden>
+        <Button ref={uploadRef} onClick={handleSubmit} hidden>
           Upload
-        </Button>
-        <Button ref={getResponseRef} onClick={handleSubmit} hidden>
-          Get Annotation
-        </Button>
-        <Button ref={predictRef} onClick={handlePredict} hidden>
-          Predict
         </Button>
       </div>
 
       {/* Response section */}
-      {response !== null && isPredicted && (
+      {response !== null && isSubmitted && (
         <Response
           response={response}
           prediction={prediction}
